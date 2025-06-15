@@ -3,6 +3,8 @@ services:
     image: traefik:latest
     container_name: traefik
     restart: unless-stopped
+    command: >
+      sh -c "sed -i 's/ACME_EMAIL_PLACEHOLDER/$${ACME_EMAIL}/g' /traefik.yml && traefik"
     security_opt:
       - no-new-privileges:true
     networks:
