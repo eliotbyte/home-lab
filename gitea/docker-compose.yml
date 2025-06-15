@@ -39,6 +39,7 @@ services:
 
 networks:
   traefik:
+    name: homelab_traefik
     external: true
   gitea-net:
     driver: bridge
