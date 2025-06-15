@@ -44,14 +44,20 @@ docker compose up -d
 - Required files structure:
 ```
 traefik/
-├── docker-compose.yml
-├── .env                  # Your environment variables
-├── env.example          # Template for .env
-├── data/               # Not in git
-│   ├── acme.json      # SSL certificates
-│   └── traefik.yml    # Traefik config
+├── docker-compose.yml  # Contains all Traefik configuration
+├── .env               # Your environment variables
+├── env.example        # Template for .env
+├── data/             # Not in git
+│   └── acme.json    # SSL certificates
 └── README.md
 ```
+
+## Configuration
+All Traefik configuration is done through command line arguments in `docker-compose.yml`. This includes:
+- API and dashboard settings
+- Entrypoints (HTTP/HTTPS)
+- Docker provider configuration
+- Let's Encrypt certificate resolver with Cloudflare DNS challenge
 
 ## Access
 - Traefik Dashboard: `https://traefik.your-domain.com`
