@@ -16,8 +16,6 @@ services:
       CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
       TRAEFIK_DASHBOARD_CREDENTIALS: ${TRAEFIK_DASHBOARD_CREDENTIALS}
       ACME_EMAIL: ${ACME_EMAIL}
-    secrets:
-      - cf_api_token
     env_file: .env
     volumes:
       - /etc/localtime:/etc/localtime:ro
