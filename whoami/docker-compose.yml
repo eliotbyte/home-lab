@@ -1,0 +1,25 @@
+services:
+
+  whoami:
+    networks:
+      - default
+
+    env_file:
+      - ./.env
+
+    hostname: ${HOST_NAME}
+
+    image: containous/whoami:latest
+
+    labels:
+      - traefik.http.routers.${SERVICE_NAME}.entrypoints=https
+      - traefik.http.routers.${SERVICE_NAME}.rule=Host(`${HOST_NAME}`)
+      - traefik.http.routers.${SERVICE_NAME}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${SERVICE_NAME}.tls=true
+
+    restart: unless-stopped
+
+networks:
+  default:
+    name: homelab_traefik
+    external: true
