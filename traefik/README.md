@@ -17,21 +17,19 @@ cp env.example .env
 2. Edit `.env` with your values:
 - `ACME_EMAIL` - your email for Let's Encrypt
 - `ROOT_DOMAIN` - your domain
+- `CF_DNS_API_TOKEN` - Cloudflare DNS API token
+- `TRAEFIK_DASHBOARD_CREDENTIALS` - username:password for dashboard access
 - `TUNNEL_TOKEN` - Cloudflare Tunnel token
+- `TZ` - your timezone
 
-3. Create secrets directory and token file:
+3. Create required directories and files:
 ```bash
-mkdir -p secrets
-nano secrets/cloudflare_api_token.txt
-```
-Add your Cloudflare API token to this file.
-
-4. Set proper permissions:
-```bash
-chmod 600 secrets/cloudflare_api_token.txt
+mkdir -p data
+touch data/acme.json
+chmod 600 data/acme.json
 ```
 
-5. Start the stack:
+4. Start the stack:
 ```bash
 docker compose up -d
 ```
@@ -40,17 +38,18 @@ docker compose up -d
 
 - Never commit sensitive files to git:
   - `.env`
-  - `secrets/` directory
+  - `data/acme.json`
   - Any other files with tokens/passwords
 
 - Required files structure:
 ```
-traefik-proxy/
+traefik/
 ├── docker-compose.yml
 ├── .env                  # Your environment variables
 ├── env.example          # Template for .env
-├── secrets/             # Not in git
-│   └── cloudflare_api_token.txt
+├── data/               # Not in git
+│   ├── acme.json      # SSL certificates
+│   └── traefik.yml    # Traefik config
 └── README.md
 ```
 
