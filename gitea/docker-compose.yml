@@ -36,6 +36,8 @@ services:
       - "traefik.http.routers.${SERVICE_NAME}.entrypoints=http"
       - "traefik.http.services.${SERVICE_NAME}.loadbalancer.server.port=${GITEA_PORT:-3000}"
       - "traefik.constraint=proxy-public"
+      - "traefik.http.middlewares.gitea-strip.stripprefix.prefixes=/"
+      - "traefik.http.routers.${SERVICE_NAME}.middlewares=gitea-strip"
 
 networks:
   traefik:
