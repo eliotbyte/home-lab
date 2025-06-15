@@ -5,6 +5,8 @@ services:
        - --name=whoami
     env_file:
       - ./.env
+    networks:
+      - traefik
     deploy:
       labels:
         - "traefik.enable=true"
