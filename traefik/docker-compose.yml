@@ -4,7 +4,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     command: >
-      sh -c "sed -i 's/ACME_EMAIL_PLACEHOLDER/$${ACME_EMAIL}/g' /traefik.yml && traefik"
+      sh -c "envsubst < /traefik.yml > /tmp/traefik.yml && traefik --configFile=/tmp/traefik.yml"
     security_opt:
       - no-new-privileges:true
     networks:
