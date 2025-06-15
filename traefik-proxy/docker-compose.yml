@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    command:
+      - "--log.level=${LOG_LEVEL:-INFO}"
+      - "--log.format=json"
+
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--entrypoints.websecure.http.tls.certresolver=letsencrypt"
+
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/letsencrypt.json"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=0"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
+
+      - "--serversTransport.insecureSkipVerify=true"
+    secrets:
+      - cf_token
+    environment:
+      - CLOUDFLARE_DNS_API_TOKEN_FILE=/run/secrets/cf_token
+      - CLOUDFLARE_HTTP_TIMEOUT=${HTTP_TIMEOUT:-30}
+      - CLOUDFLARE_POLLING_INTERVAL=${POLLING_INTERVAL:-5}
+      - CLOUDFLARE_PROPAGATION_TIMEOUT=${PROPAGATION_TIMEOUT:-60}
+      - CLOUDFLARE_TTL=${TTL:-120}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - acme:/etc/traefik/acme
+      - traefik:/config
+    networks:
+      - traefik
+      - infra
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`traefik.${ROOT_DOMAIN}`)
+      - traefik.http.routers.api.service=api@internal
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.tls=true
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    networks:
+      - traefik
+
+volumes:
+  acme:
+  traefik:
+
+secrets:
+  cf_token:
+    file: ./secrets/cloudflare_api_token.txt
+
+networks:
+  traefik:
+  infra:
