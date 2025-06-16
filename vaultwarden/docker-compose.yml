@@ -1,0 +1,40 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    restart: unless-stopped
+    volumes:
+      - ./data:/data:rw
+    environment:
+      - ADMIN_TOKEN=${ADMIN_TOKEN}
+      - WEBSOCKET_ENABLED=${WEBSOCKET_ENABLED}
+      - SIGNUPS_ALLOWED=${SIGNUPS_ALLOWED}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_FROM=${SMTP_FROM}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURITY=${SMTP_SECURITY}
+      - SMTP_TIMEOUT=${SMTP_TIMEOUT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - DOMAIN=${HOST_NAME}
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.${SERVICE_NAME}.rule=Host(`${HOST_NAME}`)"
+      - "traefik.http.routers.${SERVICE_NAME}.entrypoints=http"
+      - "traefik.http.services.${SERVICE_NAME}.loadbalancer.server.port=80"
+      - "traefik.constraint=proxy-public"
+      - "traefik.http.middlewares.vaultwarden-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${SERVICE_NAME}.middlewares=vaultwarden-https-redirect"
+      - "traefik.http.routers.${SERVICE_NAME}-secure.entrypoints=https"
+      - "traefik.http.routers.${SERVICE_NAME}-secure.rule=Host(`${HOST_NAME}`)"
+      - "traefik.http.routers.${SERVICE_NAME}-secure.tls=true"
+      - "traefik.http.routers.${SERVICE_NAME}-secure.tls.certresolver=cloudflare"
+      - "traefik.http.middlewares.vaultwarden-ssl-header.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.${SERVICE_NAME}-secure.middlewares=vaultwarden-ssl-header"
+
+networks:
+  traefik:
+    name: homelab_traefik
+    external: true 
