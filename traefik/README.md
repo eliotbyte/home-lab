@@ -62,3 +62,10 @@ All Traefik configuration is done through command line arguments in `docker-comp
 ## Access
 - Traefik Dashboard: `https://traefik.your-domain.com`
 - Make sure your domain DNS is properly configured in Cloudflare 
+
+## Cloudflare SSL/TLS Configuration
+
+1. Go to Cloudflare dashboard -> SSL/TLS -> Overview -> Configure -> Custom SSL/TLS
+2. Set SSL/TLS encryption mode to "Full (Strict)"
+3. Go to SSL/TLS -> Edge Certificates
+4. Enable "Always Use HTTPS" 
