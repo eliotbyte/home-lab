@@ -8,22 +8,25 @@ fi
 
 SERVICE=$1
 COMMAND=$2
+ROOT_DIR=$(pwd)
 
 process_service() {
     local service_dir=$1
     local cmd=$2
     
+    cd "$ROOT_DIR/$service_dir"
     case $cmd in
         "start")
-            cd "$service_dir" && docker-compose up -d
+            docker-compose up -d
             ;;
         "stop")
-            cd "$service_dir" && docker-compose down
+            docker-compose down
             ;;
         "restart")
-            cd "$service_dir" && docker-compose down && docker-compose up -d
+            docker-compose down && docker-compose up -d
             ;;
     esac
+    cd "$ROOT_DIR"
 }
 
 if [ "$SERVICE" = "all" ]; then
@@ -42,7 +45,7 @@ else
     
     case $COMMAND in
         "start"|"stop"|"restart")
-            process_service "$SERVICE_DIR" "$COMMAND"
+            process_service "$SERVICE" "$COMMAND"
             ;;
         *)
             echo "Unknown command: $COMMAND"
