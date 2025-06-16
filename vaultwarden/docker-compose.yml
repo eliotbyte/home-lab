@@ -26,6 +26,8 @@ services:
       - "traefik.http.routers.${SERVICE_NAME}.tls=true"
       - "traefik.http.routers.${SERVICE_NAME}.tls.certresolver=cloudflare"
       - "traefik.http.services.${SERVICE_NAME}.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.${SERVICE_NAME}-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.${SERVICE_NAME}.middlewares=${SERVICE_NAME}-headers"
       - "traefik.constraint=proxy-public"
 
 networks:
