@@ -1,0 +1,53 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 <service|all> <command>"
+    echo "Commands: start, stop, restart"
+    exit 1
+fi
+
+SERVICE=$1
+COMMAND=$2
+
+process_service() {
+    local service_dir=$1
+    local cmd=$2
+    
+    case $cmd in
+        "start")
+            cd "$service_dir" && docker-compose up -d
+            ;;
+        "stop")
+            cd "$service_dir" && docker-compose down
+            ;;
+        "restart")
+            cd "$service_dir" && docker-compose down && docker-compose up -d
+            ;;
+    esac
+}
+
+if [ "$SERVICE" = "all" ]; then
+    for dir in */; do
+        if [ -f "${dir}docker-compose.yml" ]; then
+            echo "Processing ${dir%/}..."
+            process_service "$dir" "$COMMAND"
+        fi
+    done
+else
+    SERVICE_DIR="./$SERVICE"
+    if [ ! -d "$SERVICE_DIR" ] || [ ! -f "$SERVICE_DIR/docker-compose.yml" ]; then
+        echo "Error: Service '$SERVICE' not found or no docker-compose.yml present"
+        exit 1
+    fi
+    
+    case $COMMAND in
+        "start"|"stop"|"restart")
+            process_service "$SERVICE_DIR" "$COMMAND"
+            ;;
+        *)
+            echo "Unknown command: $COMMAND"
+            echo "Available commands: start, stop, restart"
+            exit 1
+            ;;
+    esac
+fi 
