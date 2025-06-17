@@ -9,9 +9,9 @@ services:
     image: postgres:${PG_IMAGE_TAG}
     restart: always
     environment:
-      - POSTGRES_USER=${PG_DB_USER:}
+      - POSTGRES_USER=${PG_DB_USER}
       - POSTGRES_PASSWORD=${PG_DB_PASSWORD}
-      - POSTGRES_DB=${PG_DB_NAME:}
+      - POSTGRES_DB=${PG_DB_NAME}
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
     networks:
