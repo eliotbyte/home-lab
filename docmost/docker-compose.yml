@@ -1,0 +1,59 @@
+networks:
+  traefik-network:
+    external: true
+  docmost-net:
+    driver: bridge
+
+services:
+  db:
+    image: postgres:${PG_IMAGE_TAG}
+    restart: always
+    environment:
+      - POSTGRES_USER=${PG_DB_USER:}
+      - POSTGRES_PASSWORD=${PG_DB_PASSWORD}
+      - POSTGRES_DB=${PG_DB_NAME:}
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    networks:
+      - docmost-net
+
+  redis:
+    image: redis:${REDIS_IMAGE_TAG}
+    restart: always
+    volumes:
+      - ./redis-data:/data
+    networks:
+      - docmost-net
+
+  docmost:
+    image: docmost/docmost:${DOCMOST_IMAGE_TAG}
+    container_name: docmost
+    restart: always
+    depends_on:
+      - db
+      - redis
+    environment:
+      - APP_URL=${DOCMOST_URL}
+      - APP_SECRET=${DOCMOST_SECRET}
+      - DATABASE_URL=postgresql://${PG_DB_USER}:${PG_DB_PASSWORD}@db:5432/${PG_DB_NAME}?schema=public
+      - REDIS_URL=redis://redis:6379
+      - MAIL_DRIVER=${MAIL_DRIVER:-smtp}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Docmost}
+    volumes:
+      - ./docmost-data:/app/data/storage
+    networks:
+      - docmost-net
+      - traefik-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.docmost.rule=Host(`${HOST_NAME}`)
+      - traefik.http.routers.docmost.entrypoints=websecure
+      - traefik.http.routers.docmost.tls.certresolver=cloudflare
+      - traefik.http.routers.docmost.service=docmost
+      - traefik.http.services.docmost.loadbalancer.server.port=${DOCMOST_PORT:-3000}
+      - traefik.docker.network=traefik-network 
