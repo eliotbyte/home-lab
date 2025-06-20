@@ -4,6 +4,10 @@ networks:
   gitea-net:
     driver: bridge
 
+volumes:
+  postgres-data:
+  gitea-data:
+
 services:
   db:
     image: postgres:${PG_IMAGE_TAG}
@@ -13,7 +17,7 @@ services:
       - POSTGRES_PASSWORD=${PG_DB_PASSWORD}
       - POSTGRES_DB=${PG_DB_NAME}
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - gitea-net
 
@@ -32,7 +36,7 @@ services:
       - GITEA__database__USER=${PG_DB_USER}
       - GITEA__database__PASSWD=${PG_DB_PASSWORD}
     volumes:
-      - ./gitea-data:/data:rw
+      - gitea-data:/data:rw
     networks:
       - gitea-net
       - traefik-network

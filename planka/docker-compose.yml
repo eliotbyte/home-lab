@@ -9,6 +9,7 @@ volumes:
   user-avatars:
   background-images:
   attachments:
+  postgres-data:
 
 services:
   db:
@@ -18,7 +19,7 @@ services:
       - POSTGRES_DB=${PG_DB_NAME}
       - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - planka-net
 

@@ -4,6 +4,11 @@ networks:
   docmost-net:
     driver: bridge
 
+volumes:
+  postgres-data:
+  redis-data:
+  docmost-data:
+
 services:
   db:
     image: postgres:${PG_IMAGE_TAG}
@@ -13,7 +18,7 @@ services:
       - POSTGRES_PASSWORD=${PG_DB_PASSWORD}
       - POSTGRES_DB=${PG_DB_NAME}
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - docmost-net
 
@@ -21,7 +26,7 @@ services:
     image: redis:${REDIS_IMAGE_TAG}
     restart: always
     volumes:
-      - ./redis-data:/data
+      - redis-data:/data
     networks:
       - docmost-net
 
@@ -45,7 +50,7 @@ services:
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Docmost}
     volumes:
-      - ./docmost-data:/app/data/storage
+      - docmost-data:/app/data/storage
     networks:
       - docmost-net
       - traefik-network

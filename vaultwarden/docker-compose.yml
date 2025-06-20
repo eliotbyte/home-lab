@@ -2,13 +2,16 @@ networks:
   traefik-network:
     external: true 
 
+volumes:
+  vaultwarden-data:
+
 services:
   vaultwarden:
     image: vaultwarden/server:${VAULTWARDEN_IMAGE_TAG}
     container_name: vaultwarden
     restart: unless-stopped
     volumes:
-      - ./data:/data:rw
+      - vaultwarden-data:/data:rw
     environment:
       - SIGNUPS_ALLOWED=${VAULTWARDEN_SIGNUPS_ALLOWED}
       - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_TOKEN}
