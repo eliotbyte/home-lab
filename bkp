@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# Script for backup and restore of Docker volumes
+# Usage: ./bkp [restore]
+
+set -e
+
+BACKUP_DIR="./backups"
+MAX_BACKUPS=3
+
+# List of volumes to backup
+VOLUMES=(
+    "docmost_docmost-data"
+    "docmost_postgres-data" 
+    "docmost_redis-data"
+    "gitea_gitea-data"
+    "gitea_postgres-data"
+    "planka_user-avatars"
+    "planka_favicons"
+    "planka_background-images"
+    "planka_attachments"
+    "planka_postgres-data"
+    "vaultwarden_vaultwarden-data"
+)
+
+# Create backup directory if it doesn't exist
+mkdir -p "$BACKUP_DIR"
+
+# Function to cleanup old backups
+cleanup_old_backups() {
+    local volume_name=$1
+    local backup_pattern="$BACKUP_DIR/${volume_name}_*.tar.gz"
+    
+    # Count existing backups
+    local backup_count=$(ls -1 $backup_pattern 2>/dev/null | wc -l)
+    
+    if [ "$backup_count" -gt "$MAX_BACKUPS" ]; then
+        echo "Removing old backups for $volume_name..."
+        # Sort by date and remove oldest ones
+        ls -1t $backup_pattern | tail -n +$((MAX_BACKUPS + 1)) | xargs rm -f
+    fi
+}
+
+# Function to create backup
+create_backup() {
+    local volume_name=$1
+    local timestamp=$(date +"%Y%m%d_%H%M%S")
+    local backup_file="$BACKUP_DIR/${volume_name}_${timestamp}.tar.gz"
+    
+    echo "Creating backup for $volume_name..."
+    
+    # Check if volume exists
+    if ! docker volume inspect "$volume_name" >/dev/null 2>&1; then
+        echo "Warning: Volume $volume_name not found, skipping"
+        return 0
+    fi
+    
+    # Create temporary container for backup
+    docker run --rm -v "$volume_name":/data -v "$(pwd)/$BACKUP_DIR":/backup alpine tar czf "/backup/$(basename $backup_file)" -C /data .
+    
+    echo "Backup created: $backup_file"
+    
+    # Cleanup old backups
+    cleanup_old_backups "$volume_name"
+}
+
+# Function to restore backup
+restore_backup() {
+    local volume_name=$1
+    
+    # Find latest backup for volume
+    local latest_backup=$(ls -1t "$BACKUP_DIR/${volume_name}_"*.tar.gz 2>/dev/null | head -n 1)
+    
+    if [ -z "$latest_backup" ]; then
+        echo "Error: Backup for volume $volume_name not found"
+        return 1
+    fi
+    
+    echo "Restoring $volume_name from $latest_backup..."
+    
+    # Check if volume exists, create if not
+    if ! docker volume inspect "$volume_name" >/dev/null 2>&1; then
+        echo "Creating volume $volume_name..."
+        docker volume create "$volume_name"
+    fi
+    
+    # Restore from backup
+    docker run --rm -v "$volume_name":/data -v "$(pwd)/$(dirname $latest_backup)":/backup alpine sh -c "cd /data && tar xzf /backup/$(basename $latest_backup) --strip-components=0"
+    
+    echo "Restore completed for $volume_name"
+}
+
+# Main logic
+if [ "$1" = "restore" ]; then
+    echo "Restore mode..."
+    
+    # Stop all containers before restore
+    echo "Stopping containers..."
+    docker-compose -f docmost/docker-compose.yml down 2>/dev/null || true
+    docker-compose -f gitea/docker-compose.yml down 2>/dev/null || true
+    docker-compose -f planka/docker-compose.yml down 2>/dev/null || true
+    docker-compose -f vaultwarden/docker-compose.yml down 2>/dev/null || true
+    
+    # Restore each volume
+    for volume in "${VOLUMES[@]}"; do
+        restore_backup "$volume"
+    done
+    
+    echo "Restore completed. Start containers with: docker-compose up -d"
+    
+else
+    echo "Backup mode..."
+    
+    # Create backup for each volume
+    for volume in "${VOLUMES[@]}"; do
+        create_backup "$volume"
+    done
+    
+    echo "Backup completed. Files saved in $BACKUP_DIR"
+fi 
