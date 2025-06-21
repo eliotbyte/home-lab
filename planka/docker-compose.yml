@@ -57,6 +57,7 @@ services:
       - traefik.http.routers.planka.rule=Host(`${HOST_NAME}`)
       - traefik.http.routers.planka.entrypoints=websecure
       - traefik.http.routers.planka.tls.certresolver=cloudflare
+      - traefik.http.routers.planka.middlewares=authentik@docker
       - traefik.http.routers.planka.service=planka
       - traefik.http.services.planka.loadbalancer.server.port=${PLANKA_PORT:-1337}
       - traefik.docker.network=traefik-network 

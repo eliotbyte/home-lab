@@ -59,6 +59,9 @@ services:
       - traefik.http.routers.authentik.service=authentik
       - traefik.http.services.authentik.loadbalancer.server.port=${AUTHENTIK_PORT:-9000}
       - traefik.docker.network=traefik-network
+      - traefik.http.middlewares.authentik.forwardauth.address=https://${HOST_NAME}/outpost.goauthentik.io/auth/traefik
+      - traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true
+      - traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Name,Remote-Email
 
   worker:
     image: ghcr.io/goauthentik/server:${AUTHENTIK_IMAGE_TAG}
