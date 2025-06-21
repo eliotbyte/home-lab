@@ -1,0 +1,82 @@
+networks:
+  traefik-network:
+    external: true
+  authentik-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  authentik-media:
+  authentik-templates:
+
+services:
+  db:
+    image: postgres:${PG_IMAGE_TAG}
+    restart: always
+    environment:
+      - POSTGRES_USER=${PG_DB_USER}
+      - POSTGRES_PASSWORD=${PG_DB_PASSWORD}
+      - POSTGRES_DB=${PG_DB_NAME}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - authentik-net
+
+  redis:
+    image: redis:${REDIS_IMAGE_TAG}
+    restart: always
+    volumes:
+      - redis-data:/data
+    networks:
+      - authentik-net
+
+  authentik:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_IMAGE_TAG}
+    container_name: authentik
+    restart: always
+    depends_on:
+      - db
+      - redis
+    environment:
+      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+      - AUTHENTIK_POSTGRES__HOST=db
+      - AUTHENTIK_POSTGRES__USER=${PG_DB_USER}
+      - AUTHENTIK_POSTGRES__NAME=${PG_DB_NAME}
+      - AUTHENTIK_POSTGRES__PASSWORD=${PG_DB_PASSWORD}
+      - AUTHENTIK_REDIS__HOST=redis
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+    networks:
+      - authentik-net
+      - traefik-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authentik.rule=Host(`${HOST_NAME}`)
+      - traefik.http.routers.authentik.entrypoints=websecure
+      - traefik.http.routers.authentik.tls.certresolver=cloudflare
+      - traefik.http.routers.authentik.service=authentik
+      - traefik.http.services.authentik.loadbalancer.server.port=${AUTHENTIK_PORT:-9000}
+      - traefik.docker.network=traefik-network
+
+  worker:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_IMAGE_TAG}
+    container_name: authentik-worker
+    command: worker
+    restart: always
+    depends_on:
+      - db
+      - redis
+    environment:
+      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+      - AUTHENTIK_POSTGRES__HOST=db
+      - AUTHENTIK_POSTGRES__USER=${PG_DB_USER}
+      - AUTHENTIK_POSTGRES__NAME=${PG_DB_NAME}
+      - AUTHENTIK_POSTGRES__PASSWORD=${PG_DB_PASSWORD}
+      - AUTHENTIK_REDIS__HOST=redis
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+    networks:
+      - authentik-net 
