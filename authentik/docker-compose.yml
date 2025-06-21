@@ -2,18 +2,26 @@ networks:
   traefik-network:
     external: true
   authentik-net:
-    driver: bridge
+    internal: true
 
 volumes:
   postgres-data:
   redis-data:
   authentik-media:
   authentik-templates:
+  authentik-certs:
 
 services:
   db:
     image: postgres:${PG_IMAGE_TAG}
+    container_name: authentik-db
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${PG_DB_NAME} -U ${PG_DB_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
     environment:
       - POSTGRES_USER=${PG_DB_USER}
       - POSTGRES_PASSWORD=${PG_DB_PASSWORD}
@@ -25,7 +33,15 @@ services:
 
   redis:
     image: redis:${REDIS_IMAGE_TAG}
+    container_name: authentik-redis
+    command: --save 60 1 --loglevel warning
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
     volumes:
       - redis-data:/data
     networks:
@@ -35,15 +51,18 @@ services:
     image: ghcr.io/goauthentik/server:${AUTHENTIK_IMAGE_TAG}
     container_name: authentik
     restart: always
+    command: server
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
-      - AUTHENTIK_POSTGRES__HOST=db
-      - AUTHENTIK_POSTGRES__USER=${PG_DB_USER}
-      - AUTHENTIK_POSTGRES__NAME=${PG_DB_NAME}
-      - AUTHENTIK_POSTGRES__PASSWORD=${PG_DB_PASSWORD}
+      - AUTHENTIK_POSTGRESQL__HOST=db
+      - AUTHENTIK_POSTGRESQL__USER=${PG_DB_USER}
+      - AUTHENTIK_POSTGRESQL__NAME=${PG_DB_NAME}
+      - AUTHENTIK_POSTGRESQL__PASSWORD=${PG_DB_PASSWORD}
       - AUTHENTIK_REDIS__HOST=redis
     volumes:
       - authentik-media:/media
@@ -61,24 +80,28 @@ services:
       - traefik.docker.network=traefik-network
       - traefik.http.middlewares.authentik.forwardauth.address=https://${HOST_NAME}/outpost.goauthentik.io/auth/traefik
       - traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true
-      - traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Name,Remote-Email
+      - traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version
 
-  worker:
+  worker: 
     image: ghcr.io/goauthentik/server:${AUTHENTIK_IMAGE_TAG}
     container_name: authentik-worker
     command: worker
     restart: always
+    user: root
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
-      - AUTHENTIK_POSTGRES__HOST=db
-      - AUTHENTIK_POSTGRES__USER=${PG_DB_USER}
-      - AUTHENTIK_POSTGRES__NAME=${PG_DB_NAME}
-      - AUTHENTIK_POSTGRES__PASSWORD=${PG_DB_PASSWORD}
+      - AUTHENTIK_POSTGRESQL__HOST=db
+      - AUTHENTIK_POSTGRESQL__USER=${PG_DB_USER}
+      - AUTHENTIK_POSTGRESQL__NAME=${PG_DB_NAME}
+      - AUTHENTIK_POSTGRESQL__PASSWORD=${PG_DB_PASSWORD}
       - AUTHENTIK_REDIS__HOST=redis
     volumes:
+      - authentik-certs:/certs
       - authentik-media:/media
       - authentik-templates:/templates
     networks:
