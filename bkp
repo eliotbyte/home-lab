@@ -1,15 +1,22 @@
 #!/bin/bash
 
 # Script for backup and restore of Docker volumes
-# Usage: ./bkp [restore]
+# Usage: ./bkp [restore] [service|all]
 
 set -e
 
 BACKUP_DIR="./backups"
 MAX_BACKUPS=3
 
-# List of volumes to backup
-VOLUMES=(
+# Define volumes for each service
+declare -A SERVICE_VOLUMES
+SERVICE_VOLUMES["docmost"]=("docmost_docmost-data" "docmost_postgres-data" "docmost_redis-data")
+SERVICE_VOLUMES["gitea"]=("gitea_gitea-data" "gitea_postgres-data")
+SERVICE_VOLUMES["planka"]=("planka_user-avatars" "planka_favicons" "planka_background-images" "planka_attachments" "planka_postgres-data")
+SERVICE_VOLUMES["vaultwarden"]=("vaultwarden_vaultwarden-data")
+
+# All volumes for backup
+ALL_VOLUMES=(
     "docmost_docmost-data"
     "docmost_postgres-data" 
     "docmost_redis-data"
@@ -90,31 +97,116 @@ restore_backup() {
     echo "Restore completed for $volume_name"
 }
 
-# Main logic
-if [ "$1" = "restore" ]; then
-    echo "Restore mode..."
+# Function to backup service
+backup_service() {
+    local service=$1
+    local volumes=("${SERVICE_VOLUMES[$service]}")
     
-    # Stop all containers before restore
-    echo "Stopping containers..."
-    docker-compose -f docmost/docker-compose.yml down 2>/dev/null || true
-    docker-compose -f gitea/docker-compose.yml down 2>/dev/null || true
-    docker-compose -f planka/docker-compose.yml down 2>/dev/null || true
-    docker-compose -f vaultwarden/docker-compose.yml down 2>/dev/null || true
+    if [ ${#volumes[@]} -eq 0 ]; then
+        echo "Error: Unknown service '$service'. Available services: ${!SERVICE_VOLUMES[@]}"
+        exit 1
+    fi
     
-    # Restore each volume
-    for volume in "${VOLUMES[@]}"; do
-        restore_backup "$volume"
-    done
-    
-    echo "Restore completed. Start containers with: docker-compose up -d"
-    
-else
-    echo "Backup mode..."
-    
-    # Create backup for each volume
-    for volume in "${VOLUMES[@]}"; do
+    echo "Backing up service: $service"
+    for volume in "${volumes[@]}"; do
         create_backup "$volume"
     done
+}
+
+# Function to restore service
+restore_service() {
+    local service=$1
+    local volumes=("${SERVICE_VOLUMES[$service]}")
     
-    echo "Backup completed. Files saved in $BACKUP_DIR"
-fi 
+    if [ ${#volumes[@]} -eq 0 ]; then
+        echo "Error: Unknown service '$service'. Available services: ${!SERVICE_VOLUMES[@]}"
+        exit 1
+    fi
+    
+    echo "Restoring service: $service"
+    
+    # Stop service containers before restore
+    echo "Stopping $service containers..."
+    docker-compose -f "$service/docker-compose.yml" down 2>/dev/null || true
+    
+    for volume in "${volumes[@]}"; do
+        restore_backup "$volume"
+    done
+}
+
+# Function to show usage
+show_usage() {
+    echo "Usage: $0 [restore] [service|all]"
+    echo ""
+    echo "Commands:"
+    echo "  all                    Backup/restore all services"
+    echo "  [service]              Backup/restore specific service"
+    echo "  restore [service|all]  Restore from backup"
+    echo ""
+    echo "Available services: ${!SERVICE_VOLUMES[@]}"
+    echo ""
+    echo "Examples:"
+    echo "  $0 all                 # Backup all services"
+    echo "  $0 docmost             # Backup docmost service"
+    echo "  $0 restore all         # Restore all services"
+    echo "  $0 restore gitea       # Restore gitea service"
+}
+
+# Main logic
+case "$1" in
+    "restore")
+        case "$2" in
+            "all")
+                echo "Restore mode for all services..."
+                
+                # Stop all containers before restore
+                echo "Stopping all containers..."
+                docker-compose -f docmost/docker-compose.yml down 2>/dev/null || true
+                docker-compose -f gitea/docker-compose.yml down 2>/dev/null || true
+                docker-compose -f planka/docker-compose.yml down 2>/dev/null || true
+                docker-compose -f vaultwarden/docker-compose.yml down 2>/dev/null || true
+                
+                # Restore each volume
+                for volume in "${ALL_VOLUMES[@]}"; do
+                    restore_backup "$volume"
+                done
+                
+                echo "Restore completed. Start containers with: docker-compose up -d"
+                ;;
+            "")
+                show_usage
+                exit 1
+                ;;
+            *)
+                restore_service "$2"
+                echo "Restore completed for $2. Start containers with: docker-compose up -d"
+                ;;
+        esac
+        ;;
+    "all")
+        echo "Backup mode for all services..."
+        
+        # Create backup for each volume
+        for volume in "${ALL_VOLUMES[@]}"; do
+            create_backup "$volume"
+        done
+        
+        echo "Backup completed. Files saved in $BACKUP_DIR"
+        ;;
+    "")
+        show_usage
+        exit 1
+        ;;
+    *)
+        # Check if it's a valid service
+        if [[ -n "${SERVICE_VOLUMES[$1]}" ]]; then
+            echo "Backup mode for service: $1"
+            backup_service "$1"
+            echo "Backup completed for $1. Files saved in $BACKUP_DIR"
+        else
+            echo "Error: Unknown service '$1'"
+            show_usage
+            exit 1
+        fi
+        ;;
+esac 
