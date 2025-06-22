@@ -59,7 +59,7 @@ services:
       - traefik.http.routers.docmost.rule=Host(`${HOST_NAME}`)
       - traefik.http.routers.docmost.entrypoints=websecure
       - traefik.http.routers.docmost.tls.certresolver=cloudflare
-      - traefik.http.routers.docmost.middlewares=authentik@docker
+      - traefik.http.routers.docmost.middlewares=middleware-authentik@file
       - traefik.http.routers.docmost.service=docmost
       - traefik.http.services.docmost.loadbalancer.server.port=${DOCMOST_PORT:-3000}
       - traefik.docker.network=traefik-network 
